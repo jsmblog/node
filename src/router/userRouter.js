@@ -1,16 +1,26 @@
 import express from 'express';
-import { login,updateUsersPassword, updateUsersEmail, getUsers,createUsers,updateUsers,deleteUsers,getOneUser} from '../controllers/userController.js';
-import  {verifyToken}  from '../middleware/auth.js';
+import { 
+  login,
+  updateUsersPassword, 
+  updateUsersEmail, 
+  getUsers,
+  createUsers,
+  updateUsers,
+  deleteUsers,
+  getOneUser,
+  createAnonymousUser
+} from '../controllers/userController.js';
 
 const router = express.Router();
 
-router.get('/user',verifyToken, getUsers);
-router.get('/user/:id',verifyToken, getOneUser);
+router.get('/user', getUsers);
+router.get('/user/:id', getOneUser);
 router.post('/register', createUsers);
-router.put('/user/:id',verifyToken, updateUsers);
-router.delete('/user/:id', verifyToken, deleteUsers);
+router.post('/anonymous', createAnonymousUser); 
+router.put('/user/:id', updateUsers);
+router.delete('/user/:id', deleteUsers);
 router.post('/login', login);
-router.put('/user/email/:id',verifyToken, updateUsersEmail);
-router.put('/user/password/:id',verifyToken, updateUsersPassword);
+router.put('/user/email/:id', updateUsersEmail);
+router.put('/user/password/:id', updateUsersPassword);
 
-export const RouterUsuer = router;
+export const RouterUser = router;

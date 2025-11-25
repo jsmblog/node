@@ -6,10 +6,10 @@ import { TOKEN_KEY } from "../config/config.js";
 export const getUsers = async (req, res) => {
   try {
     const users = await UserModel.findAll({
-      attributes: ['id', 'user', 'email']
-    },{where: {state:true}});
-  
-    res.status(200).json({users});
+      attributes: ['id', 'username', 'email', 'isAnonymous'],
+      where: { state: true }
+    });
+    res.status(200).json({ users });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -17,15 +17,16 @@ export const getUsers = async (req, res) => {
 
 export const getOneUser = async (req, res) => {
   try {
-    const user = await UserModel.findOne({where:{id:req.params.id}});
-    if(!user){
-      res.status(404).json({message: "user not found"});
+    const user = await UserModel.findOne({ where: { id: req.params.id } });
+    if (!user) {
+      return res.status(404).json({ message: "user not found" });
     }
-    res.status(200).json({user});
+    res.status(200).json({ user });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
 export const createUsers = async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -35,7 +36,7 @@ export const createUsers = async (req, res) => {
 
     const oldUser = await UserModel.findOne({ where: { email } });
     if (oldUser) {
-      return res.status(409).json("email already exist");
+      return res.status(409).json({ message: "email already exist" });
     }
 
     const encryptedPassword = await bcrypt.hash(password, 10);
@@ -44,9 +45,8 @@ export const createUsers = async (req, res) => {
       username,
       email: email.toLowerCase().trim(),
       password: encryptedPassword,
+      isAnonymous: false
     });
-
-    delete users.password;
 
     const token = jwt.sign(
       { user_id: users.id, email },
@@ -54,78 +54,136 @@ export const createUsers = async (req, res) => {
       { expiresIn: "1h" }
     );
 
-    res.status(201).json({ users, token });
+    const userData = {
+      id: users.id,
+      username: users.username,
+      email: users.email,
+      isAnonymous: users.isAnonymous
+    };
+
+    res.status(201).json({ user: userData, token });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Nuevo: Crear usuario anónimo
+export const createAnonymousUser = async (req, res) => {
+  try {
+    const anonymousUsername = `Anonymous_${Date.now()}`;
+    
+    const user = await UserModel.create({
+      username: anonymousUsername,
+      email: null,
+      password: null,
+      isAnonymous: true
+    });
+
+    const token = jwt.sign(
+      { user_id: user.id, isAnonymous: true },
+      TOKEN_KEY,
+      { expiresIn: "24h" }
+    );
+
+    const userData = {
+      id: user.id,
+      username: user.username,
+      isAnonymous: user.isAnonymous
+    };
+
+    res.status(201).json({ user: userData, token });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
 export const updateUsers = async (req, res) => {
-  const { user } = req.body;
-  if (!(user)) {
-    res.status(400).json({ message: "user is required" });
-  }
-  const userD = await UserModel.findOne({where:{id:req.params.id}});
-  if(userD){
-    userD.set({...userD,user:user});
+  try {
+    const { username } = req.body;
+    if (!username) {
+      return res.status(400).json({ message: "username is required" });
+    }
+    const userD = await UserModel.findOne({ where: { id: req.params.id } });
+    if (userD) {
+      userD.set({ ...userD, username });
       await userD.save();
       res.status(200).json({ message: "update" });
-  }else{
-      res.status(404).json({message: "user not found"});
+    } else {
+      res.status(404).json({ message: "user not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
+
 export const updateUsersEmail = async (req, res) => {
-  const { email } = req.body;
-  if (!(email)) {
-    res.status(400).json({ message: "email is required" });
-  }
-  const oldUser = await UserModel.findOne({ where: { email: email } });
-  if (oldUser) {
-    return res.status(409).json("email already exist");
-  }
-  const userD = await UserModel.findOne({where:{id:req.params.id}});
-  if(userD){
-    userD.set({...userD,email:email});
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "email is required" });
+    }
+    const oldUser = await UserModel.findOne({ where: { email: email } });
+    if (oldUser) {
+      return res.status(409).json({ message: "email already exist" });
+    }
+    const userD = await UserModel.findOne({ where: { id: req.params.id } });
+    if (userD) {
+      userD.set({ ...userD, email: email });
       await userD.save();
       res.status(200).json({ message: "update" });
-  }else{
-      res.status(404).json({message: "user not found"});
+    } else {
+      res.status(404).json({ message: "user not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
+
 export const updateUsersPassword = async (req, res) => {
-  const { password } = req.body;
-  if (!(password)) {
-    res.status(400).json({ message: "password is required" });
-  }
-  const userD = await UserModel.findOne({where:{id:req.params.id}});
-  if(userD){
-    userD.set({...userD,password:password});
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ message: "password is required" });
+    }
+    const encryptedPassword = await bcrypt.hash(password, 10);
+    const userD = await UserModel.findOne({ where: { id: req.params.id } });
+    if (userD) {
+      userD.set({ ...userD, password: encryptedPassword });
       await userD.save();
       res.status(200).json({ message: "update" });
-  }else{
-      res.status(404).json({message: "user not found"});
+    } else {
+      res.status(404).json({ message: "user not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
+
 export const deleteUsers = async (req, res) => {
-  const user = await UserModel.findOne({ where: { id: req.params.id } });
-  if (user) {
-    user.set({ ...user, state: false });
-    await user.save();
-    res.status(200).json({ message: "delete" });
-  } else {
-    res.status(404).json({ message: "type not found" });
+  try {
+    const user = await UserModel.findOne({ where: { id: req.params.id } });
+    if (user) {
+      user.set({ ...user, state: false });
+      await user.save();
+      res.status(200).json({ message: "delete" });
+    } else {
+      res.status(404).json({ message: "user not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
+
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!(email && password)) {
-      res.status(400).json({message:"All input is required"});
+      return res.status(400).json({ message: "All input is required" });
     }
     const user = await UserModel.findOne({
       where: { email: email.toLowerCase() },
     });
-     if (!user) {
+    if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -135,40 +193,15 @@ export const login = async (req, res) => {
     const token = jwt.sign({ user_id: user.id, email }, TOKEN_KEY, {
       expiresIn: "1h",
     });
-      let dataUser={
-          id:user.id,
-          user:user.user,
-          email:user.email,
-        }
-      res.status(200).json({ dataUser, token: token });
+    const dataUser = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      isAnonymous: user.isAnonymous
+    };
+    res.status(200).json({ user: dataUser, token: token });
   } catch (err) {
-    console.error("Login:", err.message );
+    console.error("Login:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
-
-export const refresh = (req, res) => {
-  const token = req.headers["authorization"].split(" ")[1];
-	if (!token) {
-		return res.status(401).end()
-	}
-	var payload
-	try {
-		payload = jwt.verify(token, 'secret')
-	} catch (e) {
-		if (e instanceof jwt.JsonWebTokenError) {
-			return res.status(401).end()
-		}
-		return res.status(400).end()
-	}
-	const nowUnixSeconds = Math.round(Number(new Date()) / 1000)
-	if (payload.exp - nowUnixSeconds > 30) {
-		return res.status(400).end()
-	}
-	const newToken = jwt.sign({ username: payload.username }, jwtKey, {
-		algorithm: "HS256",
-		expiresIn: jwtExpirySeconds,
-	})
-	res.cookie("token", newToken, { maxAge: jwtExpirySeconds * 1000 })
-	res.end()
-}

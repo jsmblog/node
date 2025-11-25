@@ -15,15 +15,23 @@ export const UserModel = sequelize.define(
     },
     email: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true, 
+      unique: true,
     },
     password: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true, 
     },
+    isAnonymous: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    state: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+    }
   },
   {
     timestamps: true,
   }
 );
-
